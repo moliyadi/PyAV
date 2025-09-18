@@ -11,7 +11,6 @@ from av.bytesource cimport ByteSource, bytesource
 
 cdef object _cinit_bypass_sentinel = object()
 
-
 class Type(Enum):
     """
     Enum class representing different types of frame data in audio/video processing.
@@ -116,8 +115,17 @@ cdef class _SideDataContainer:
 
     def add(self, buffer, type):
         # Add Frame side data
+        if hasattr(type, "value"):
+            type = type.value
+        elif isinstance(type, str):
+            type = Type[type].value
+        else:
+            type = int(type)
+
         cdef ByteSource source = bytesource(buffer)
         i = self.frame.ptr.nb_side_data
+        if lib.av_frame_make_writable(self.frame.ptr) < 0:
+            raise MemoryError("Unable to make frame writable before adding side data")
         ptr = lib.av_frame_new_side_data(self.frame.ptr, type, source.length)
         memcpy(ptr.data, source.ptr, source.length)
 
